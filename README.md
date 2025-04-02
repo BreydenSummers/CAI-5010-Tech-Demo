@@ -1,4 +1,4 @@
-# 🤖 CAI-5010 Tech Demo: Image-to-Insight Pipeline
+# 🤖 CAI-5010 Tech Demo: Image-to-Insight
 
 The system is composed of:
 
