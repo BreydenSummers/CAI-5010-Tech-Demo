@@ -4,7 +4,7 @@ The system is composed of:
 
 - 🧠 **ML-Based Image Feature Extractor**: A machine learning pipeline that extracts structured data from images.
 - 📊 **Data Analyzer**: A downstream processor that performs analysis on extracted features — including potential LLM integration.
-- 🧵 **Controller Script**: Orchestrates the entire end-to-end process from raw image to analytical output.
+- 🧵 **Controller Script**: Orchestrates the entire end-to-end process from raw image to analytical output. (web interface?)
 
 ---
 
@@ -14,16 +14,14 @@ The system is composed of:
 CAI-5010-Tech-Demo/
 ├── controller.py              # Entry point to run the full pipeline
 ├── extractor/
-│   ├── __init__.py
 │   ├── extract.py             # ML pipeline for feature extraction
 │   └── model/                 # Trained models or checkpoints
 ├── analyzer/
-│   ├── __init__.py
 │   ├── analyze.py             # Performs data analysis and LLM interaction
 │   └── visualizer.py          # (Optional) Generates visual reports
 ├── data/
 │   ├── raw/                   # Input images
-│   └── processed/             # ML-generated features
+│   └── processed/             # ML-generated features (json?)
 ├── results/
 │   └── analysis_output.json   # Final output from analyzer
 ├── requirements.txt
