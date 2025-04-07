@@ -1,0 +1,6 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+
+torch==2.2.0+cpu
+torchvision==0.17+cpu
+
+# matplotlib and numpy are also requirements--need to be added

@@ -52,3 +52,9 @@ dist/
 *.bak
 *.swp
 
+# Data is too large to be included in repo
+# All of this can also be easily generated from the dataset/python files
+extractor/data/*
+extractor/evaluation_results/*
+extractor/samples/*
+extractor/output/*

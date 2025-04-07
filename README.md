@@ -46,6 +46,14 @@ Set up a virtual environment and install required libraries:
 pip install -r requirements.txt
 ```
 
+### 3. Download Data
+
+Download needed data (only if training models):
+
+```
+https://zenodo.org/records/7331974#.Y3dUlXZByUk
+```
+
 ---
 
 ## 🧩 Components
