@@ -45,7 +45,13 @@
     <!-- Analysis Form -->
     <form id="analysisForm" action="{{ url_for('analyze_selected', project_name=project_name) }}" method="post">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">Images</h2>
+            <div class="flex items-center space-x-4">
+                <h2 class="text-xl font-semibold">Images</h2>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="selectAll" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                    <span class="ml-2 text-gray-700 font-medium">Select All</span>
+                </label>
+            </div>
             <button type="submit" id="analyzeBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded" disabled>
                 Analyze Selected
             </button>
@@ -54,7 +60,7 @@
         <!-- Image Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for image in images %}
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden image-card">
                 <div class="relative group cursor-pointer" onclick="toggleSelection(this, '{{ image.filename }}')">
                     <input type="checkbox" name="selected_images" value="{{ image.filename }}" class="hidden">
                     <div class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -113,6 +119,8 @@
         const uploadForm = document.getElementById('uploadForm');
         const analysisForm = document.getElementById('analysisForm');
         const loadingBar = document.getElementById('loadingBar');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const imageCards = document.querySelectorAll('.image-card');
         
         function showLoading() {
             loadingBar.classList.remove('hidden');
@@ -129,6 +137,23 @@
         analysisForm.addEventListener('submit', function() {
             showLoading();
         });
+        
+        // Select All functionality
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('input[name="selected_images"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                const card = checkbox.closest('.image-card');
+                if (card) {
+                    if (this.checked) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                }
+            });
+            updateAnalyzeButton();
+        });
     });
     
     function toggleSelection(element, filename) {
@@ -136,14 +161,18 @@
         checkbox.checked = !checkbox.checked;
         
         // Toggle selection styling
+        const card = element.closest('.image-card');
         if (checkbox.checked) {
-            element.classList.add('ring-2', 'ring-blue-500');
+            card.classList.add('selected');
         } else {
-            element.classList.remove('ring-2', 'ring-blue-500');
+            card.classList.remove('selected');
         }
         
         // Update analyze button state
         updateAnalyzeButton();
+        
+        // Update select all checkbox state
+        updateSelectAllState();
     }
     
     function updateAnalyzeButton() {
@@ -151,5 +180,28 @@
         const analyzeBtn = document.getElementById('analyzeBtn');
         analyzeBtn.disabled = checkboxes.length === 0;
     }
+    
+    function updateSelectAllState() {
+        const checkboxes = document.querySelectorAll('input[name="selected_images"]');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+    }
 </script>
+
+<style>
+    .image-card {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .image-card.selected {
+        transform: scale(1.02);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 3px solid #3b82f6;
+    }
+    
+    .image-card.selected .relative {
+        border: none;
+    }
+</style>
 {% endblock %}

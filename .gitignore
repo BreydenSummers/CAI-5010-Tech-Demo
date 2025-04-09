@@ -61,6 +61,7 @@ extractor/output/*
 
 # Website-specific generated content
 Website/results/*
+data/*
 
 
 
