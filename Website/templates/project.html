@@ -1,227 +1,125 @@
 {% extends "base.html" %}
+
 {% block content %}
-  <h1 class="text-2xl font-bold mb-4">Project: {{ project_name }}</h1>
-
-  <!-- Image Upload Form -->
-  <div class="mb-6 p-4 bg-white shadow rounded">
-    <h2 class="text-xl font-semibold mb-3">1. Upload Images</h2>
-    <form method="POST" action="{{ url_for('project_view', project_name=project_name) }}" enctype="multipart/form-data" id="uploadForm">
-      <div class="mb-3">
-        <label for="images" class="block text-sm font-medium text-gray-700">Upload Image</label>
-        <input type="file" class="mt-1 block w-full text-sm text-gray-500
-          file:mr-4 file:py-2 file:px-4
-          file:rounded-full file:border-0
-          file:text-sm file:font-semibold
-          file:bg-blue-50 file:text-blue-700
-          hover:file:bg-blue-100" 
-          id="images" name="images" accept="image/*" required>
-      </div>
-      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-150 ease-in-out">
-        Upload
-      </button>
-    </form>
-    
-    <!-- Loading Bar -->
-    <div id="loadingBar" class="mt-4 hidden">
-      <div class="w-full bg-gray-200 rounded-full h-2.5">
-        <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 100%"></div>
-      </div>
-      <p class="text-center mt-2 text-gray-600">Processing images...</p>
-    </div>
-  </div>
-
-  <!-- Image Selection and Analysis Trigger -->
-  <div class="bg-white shadow rounded p-4">
-    <h2 class="text-xl font-semibold mb-4">2. Select Images for Further Analysis</h2>
-    {% if images %}
-      <form method="POST" action="{{ url_for('analyze_selected', project_name=project_name) }}" id="imageSelectionForm">
-        <!-- Select All Button -->
-        <div class="mb-4">
-          <label class="inline-flex items-center">
-            <input type="checkbox" id="selectAll" class="form-checkbox h-5 w-5 text-blue-600">
-            <span class="ml-2 text-gray-700 font-medium">Select All Images</span>
-          </label>
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Project: {{ project_name }}</h1>
+        <div class="flex space-x-4">
+            <a href="{{ url_for('index') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                Back to Projects
+            </a>
+            <form action="{{ url_for('delete_project', project_name=project_name) }}" method="post" class="inline" onsubmit="return confirm('Are you sure you want to delete this project? This will remove all images and analysis results.');">
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                    Delete Project
+                </button>
+            </form>
         </div>
+    </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {% for image in images %}
-            <div class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-              <!-- Card header with image and filename - clickable for selection -->
-              <div class="cursor-pointer image-card" onclick="toggleCardSelection(this, 'check{{ loop.index }}')">
-                <img src="{{ url_for('uploaded_file', project_name=project_name, filename=image.annotated) }}?v={{ range(1000000) | random }}" 
-                     class="w-full h-48 object-cover" 
-                     alt="{{ image.filename }}">
-                <div class="p-4">
-                  <h5 class="font-semibold text-gray-800">{{ image.filename }}</h5>
-                  
-                  <!-- Preview Data Section -->
-                  <div class="mt-2 space-y-1">
-                    {% if image.meta %}
-                      <div class="text-sm">
-                        <span class="font-medium">Max Confidence:</span>
-                        <span class="text-gray-600">{{ "%.2f"|format(image.meta.predictions.scores|max * 100) }}%</span>
-                      </div>
-                      <div class="text-sm">
-                        <span class="font-medium">Avg Confidence:</span>
-                        <span class="text-gray-600">{{ "%.2f"|format(image.meta.predictions.scores|sum / image.meta.predictions.scores|length * 100) }}%</span>
-                      </div>
-                      <div class="text-sm">
-                        <span class="font-medium">Detections:</span>
-                        <span class="text-gray-600">{{ image.meta.predictions.scores|length }}</span>
-                      </div>
-                    {% endif %}
-                  </div>
-
-                  <!-- Hidden Checkbox -->
-                  <div class="mt-2 hidden">
-                    <input type="checkbox" name="selected_images" value="{{ image.filename }}" 
-                           class="form-checkbox h-4 w-4 text-blue-600" id="check{{ loop.index }}">
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Card footer with buttons - not part of the clickable area -->
-              <div class="p-4 pt-0 flex justify-between items-center">
-                <div class="flex space-x-2">
-                  <a href="{{ url_for('image_details', project_name=project_name, filename=image.filename) }}" 
-                     class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                    View Details
-                  </a>
-                  <button type="button" 
-                          class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-150 ease-in-out"
-                          onclick="deleteImage('{{ project_name }}', '{{ image.filename }}')">
-                    Delete
-                  </button>
-                </div>
-              </div>
+    <!-- Upload Form -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Upload Images</h2>
+        <form action="{{ url_for('project_view', project_name=project_name) }}" method="post" enctype="multipart/form-data" class="space-y-4">
+            <div class="flex items-center space-x-4">
+                <input type="file" name="images" multiple accept="image/*" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    Upload
+                </button>
             </div>
-          {% endfor %}
-        </div>
-        <div class="mt-6">
-          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-150 ease-in-out">
-            Analyze Selected
-          </button>
-        </div>
-      </form>
-    {% else %}
-      <p class="text-gray-700">No images have been uploaded for this project yet.</p>
-    {% endif %}
-  </div>
-
-  <!-- Image Modal -->
-  <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
-    <div class="max-w-4xl w-full mx-4">
-      <div class="bg-white rounded-lg overflow-hidden">
-        <div class="p-4">
-          <img src="" class="max-h-[80vh] w-full object-contain" id="modalImage">
-        </div>
-      </div>
+        </form>
     </div>
-  </div>
 
-  {% if analysis_results %}
-  <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-    <h3 class="text-lg font-semibold mb-2">Analysis Results</h3>
-    <pre class="bg-gray-100 p-4 rounded overflow-x-auto">{{ analysis_results | tojson(indent=2) }}</pre>
-  </div>
-  {% endif %}
+    <!-- Analysis Form -->
+    <form id="analysisForm" action="{{ url_for('analyze_selected', project_name=project_name) }}" method="post">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Images</h2>
+            <button type="submit" id="analyzeBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded" disabled>
+                Analyze Selected
+            </button>
+        </div>
+
+        <!-- Image Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for image in images %}
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="relative group cursor-pointer" onclick="toggleSelection(this, '{{ image.filename }}')">
+                    <input type="checkbox" name="selected_images" value="{{ image.filename }}" class="hidden">
+                    <div class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="bg-black bg-opacity-50 rounded-full p-1">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <img src="{{ url_for('uploaded_file', project_name=project_name, filename=image.annotated) }}?v={{ range(1000000) | random }}" 
+                         alt="{{ image.filename }}" 
+                         class="w-full h-48 object-cover">
+                </div>
+                <div class="p-4">
+                    <h3 class="font-medium truncate">{{ image.filename }}</h3>
+                    <div class="mt-2 flex justify-between">
+                        <a href="{{ url_for('image_details', project_name=project_name, filename=image.filename) }}" 
+                           class="text-blue-600 hover:text-blue-800">
+                            View Details
+                        </a>
+                        <form action="{{ url_for('delete_image', project_name=project_name, filename=image.filename) }}" 
+                              method="post" class="inline" 
+                              onsubmit="return confirm('Are you sure you want to delete this image?');">
+                            <button type="submit" class="text-red-600 hover:text-red-800">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+
+    <!-- Analysis Results -->
+    {% if analysis_results %}
+    <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Analysis Results</h2>
+        <div class="prose max-w-none">
+            <p>{{ analysis_results.message }}</p>
+            <h3>Analyzed Files:</h3>
+            <ul>
+                {% for file in analysis_results.analyzed_files %}
+                <li>{{ file }}</li>
+                {% endfor %}
+            </ul>
+            <h3>Details:</h3>
+            <p>{{ analysis_results.details }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const uploadForm = document.getElementById('uploadForm');
-    const analysisForm = document.getElementById('imageSelectionForm');
-    const loadingBar = document.getElementById('loadingBar');
-    const modal = document.getElementById('imageModal');
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const imageCheckboxes = document.querySelectorAll('input[name="selected_images"]');
-
-    // Select All functionality
-    selectAllCheckbox.addEventListener('change', function() {
-      imageCheckboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-        const card = checkbox.closest('.image-card');
-        if (card) {
-          if (this.checked) {
-            card.classList.add('ring-2', 'ring-blue-500');
-          } else {
-            card.classList.remove('ring-2', 'ring-blue-500');
-          }
+    function toggleSelection(element, filename) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        
+        // Toggle selection styling
+        if (checkbox.checked) {
+            element.classList.add('ring-2', 'ring-blue-500');
+        } else {
+            element.classList.remove('ring-2', 'ring-blue-500');
         }
-      });
-    });
-
-    function showLoading() {
-      loadingBar.classList.remove('hidden');
+        
+        // Update analyze button state
+        updateAnalyzeButton();
     }
-
-    function hideLoading() {
-      loadingBar.classList.add('hidden');
+    
+    function updateAnalyzeButton() {
+        const checkboxes = document.querySelectorAll('input[name="selected_images"]:checked');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        analyzeBtn.disabled = checkboxes.length === 0;
     }
-
-    uploadForm.addEventListener('submit', function() {
-      showLoading();
-    });
-
-    analysisForm.addEventListener('submit', function() {
-      showLoading();
-    });
-
-    // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
-      if (e.target === modal) {
-        modal.classList.add('hidden');
-      }
-    });
-
-    // Handle Escape key
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') {
-        modal.classList.add('hidden');
-      }
-    });
-  });
-
-  function toggleCardSelection(card, checkboxId) {
-    const checkbox = document.getElementById(checkboxId);
-    checkbox.checked = !checkbox.checked;
-    if (checkbox.checked) {
-      card.classList.add('ring-2', 'ring-blue-500');
-    } else {
-      card.classList.remove('ring-2', 'ring-blue-500');
-    }
-    updateSelectAllState();
-  }
-
-  function updateSelectAllState() {
-    const checkboxes = document.querySelectorAll('input[name="selected_images"]');
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    selectAllCheckbox.checked = allChecked;
-  }
-
-  function showImage(src) {
-    const modal = document.getElementById('imageModal');
-    const modalImg = document.getElementById('modalImage');
-    modalImg.src = src;
-    modal.classList.remove('hidden');
-  }
-
-  function deleteImage(projectName, filename) {
-    if (confirm('Are you sure you want to delete this image?')) {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `/project/${projectName}/delete/${filename}`;
-      
-      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-      const csrfInput = document.createElement('input');
-      csrfInput.type = 'hidden';
-      csrfInput.name = 'csrf_token';
-      csrfInput.value = csrfToken;
-      form.appendChild(csrfInput);
-      
-      document.body.appendChild(form);
-      form.submit();
-    }
-  }
 </script>
 {% endblock %}

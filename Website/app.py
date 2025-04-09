@@ -456,4 +456,28 @@ def image_details(project_name, filename):
                          detection_filename=detection_filename,
                          metadata=metadata)
 
+@app.route('/project/<project_name>/delete', methods=['POST'])
+def delete_project(project_name):
+    """Delete an entire project and all its contents."""
+    project_dir = os.path.join(UPLOAD_ROOT, project_name)
+    
+    if not os.path.exists(project_dir):
+        flash('Project not found.', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # Remove all files in the project directory
+        for filename in os.listdir(project_dir):
+            file_path = os.path.join(project_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        
+        # Remove the project directory itself
+        os.rmdir(project_dir)
+        flash('Project deleted successfully.', 'success')
+    except Exception as e:
+        flash(f'Error deleting project: {str(e)}', 'error')
+    
+    return redirect(url_for('index'))
+
 # (In a real setup, you would include app.run or use a WSGI server to run the app)
