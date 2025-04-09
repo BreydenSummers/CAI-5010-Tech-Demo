@@ -57,21 +57,17 @@
                 <div class="mt-2 space-y-1">
                   {% if image.meta %}
                     <div class="text-sm">
-                      <span class="font-medium">Confidence:</span>
-                      <span class="text-gray-600">{{ "%.2f"|format(image.meta.confidence * 100) }}%</span>
+                      <span class="font-medium">Max Confidence:</span>
+                      <span class="text-gray-600">{{ "%.2f"|format(image.meta.predictions.scores|max * 100) }}%</span>
                     </div>
-                    {% if image.meta.num_detections is defined %}
-                      <div class="text-sm">
-                        <span class="font-medium">Detections:</span>
-                        <span class="text-gray-600">{{ image.meta.num_detections }}</span>
-                      </div>
-                    {% endif %}
-                    {% if image.meta.label %}
-                      <div class="text-sm">
-                        <span class="font-medium">Label:</span>
-                        <span class="text-gray-600">{{ image.meta.label }}</span>
-                      </div>
-                    {% endif %}
+                    <div class="text-sm">
+                      <span class="font-medium">Avg Confidence:</span>
+                      <span class="text-gray-600">{{ "%.2f"|format(image.meta.predictions.scores|sum / image.meta.predictions.scores|length * 100) }}%</span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="font-medium">Detections:</span>
+                      <span class="text-gray-600">{{ image.meta.predictions.scores|length }}</span>
+                    </div>
                   {% endif %}
                 </div>
 
@@ -119,23 +115,18 @@
     </div>
   </div>
 
-  <!-- Details Modal -->
-  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
-    <div class="max-w-2xl w-full mx-4">
-      <div class="bg-white rounded-lg overflow-hidden">
-        <div class="p-6">
-          <h3 class="text-xl font-semibold mb-4" id="detailsTitle">Image Details</h3>
-          <div id="detailsContent" class="space-y-4">
-            <!-- Content will be populated by JavaScript -->
-          </div>
-          <div class="mt-6 flex justify-end">
-            <button onclick="closeDetailsModal()" 
-                    class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition duration-150 ease-in-out">
-              Close
-            </button>
-          </div>
-        </div>
+  <!-- Image Details Modal -->
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="detailsTitle" class="text-xl font-bold"></h3>
+        <button onclick="closeDetailsModal()" class="text-gray-500 hover:text-gray-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
+      <div id="detailsContent" class="space-y-4"></div>
     </div>
   </div>
 
@@ -230,7 +221,9 @@
   }
 
   function showImageDetails(event, filename, metadata) {
+    event.preventDefault(); // Prevent default behavior
     event.stopPropagation(); // Prevent card selection
+    
     const modal = document.getElementById('detailsModal');
     const title = document.getElementById('detailsTitle');
     const content = document.getElementById('detailsContent');
@@ -238,19 +231,45 @@
     title.textContent = `Details for ${filename}`;
     
     let html = '<div class="space-y-4">';
-    if (metadata) {
-      for (const [key, value] of Object.entries(metadata)) {
-        if (key === 'confidence') {
-          html += `<div class="flex justify-between">
-                    <span class="font-medium">Confidence:</span>
-                    <span>${(value * 100).toFixed(2)}%</span>
-                  </div>`;
-        } else {
-          html += `<div class="flex justify-between">
-                    <span class="font-medium">${key.replace('_', ' ').toUpperCase()}:</span>
-                    <span>${value}</span>
+    if (metadata && metadata.predictions) {
+      const scores = metadata.predictions.scores;
+      const maxConfidence = Math.max(...scores);
+      const avgConfidence = scores.reduce((a, b) => a + b, 0) / scores.length;
+      
+      // Format confidence scores
+      html += `<div class="flex justify-between">
+                <span class="font-medium">Max Confidence:</span>
+                <span>${(maxConfidence * 100).toFixed(2)}%</span>
+              </div>`;
+      html += `<div class="flex justify-between">
+                <span class="font-medium">Average Confidence:</span>
+                <span>${(avgConfidence * 100).toFixed(2)}%</span>
+              </div>`;
+      html += `<div class="flex justify-between">
+                <span class="font-medium">Number of Detections:</span>
+                <span>${scores.length}</span>
+              </div>`;
+      
+      // Add detection details
+      if (metadata.predictions.boxes && metadata.predictions.boxes.length > 0) {
+        html += '<div class="mt-4">';
+        html += '<h4 class="font-medium mb-2">Detection Details:</h4>';
+        html += '<div class="space-y-2">';
+        for (let i = 0; i < metadata.predictions.boxes.length; i++) {
+          const box = metadata.predictions.boxes[i];
+          const score = metadata.predictions.scores[i];
+          const label = metadata.predictions.labels[i];
+          html += `<div class="text-sm">
+                    <div class="flex justify-between">
+                      <span>Detection ${i + 1}:</span>
+                      <span>${(score * 100).toFixed(2)}%</span>
+                    </div>
+                    <div class="text-gray-600 text-xs">
+                      Box: [${box.map(x => x.toFixed(1)).join(', ')}]
+                    </div>
                   </div>`;
         }
+        html += '</div></div>';
       }
     } else {
       html += '<p class="text-gray-500">No metadata available</p>';
@@ -259,10 +278,18 @@
     
     content.innerHTML = html;
     modal.classList.remove('hidden');
+    
+    // Add event listener to close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeDetailsModal();
+      }
+    });
   }
 
   function closeDetailsModal() {
-    document.getElementById('detailsModal').classList.add('hidden');
+    const modal = document.getElementById('detailsModal');
+    modal.classList.add('hidden');
   }
 
   function deleteImage(event, projectName, filename) {

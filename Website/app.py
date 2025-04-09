@@ -90,18 +90,16 @@ def project_view(project_name):
                     # Define paths relative to workspace root
                     workspace_root = os.path.abspath(os.path.join(app.root_path, '..'))
                     script_path = os.path.join(workspace_root, 'extractor', 'extract.py')
-                    model_path = os.path.join(workspace_root, 'extractor', 'model', 'test_model.pth') # Point to the specific model file
+                    model_path = os.path.join(workspace_root, 'extractor', 'model', 'test_model.pth')
 
                     # Construct command
-                    # Use arguments identified from script's usage string
                     cmd = [
                         sys.executable, 
                         script_path,
-                        '--input', save_path,      # Changed from --image_path
-                        '--model', model_path,      # Changed from --model_path
-                        '--output_dir', project_path # Added output directory
-                        # Add other necessary args for extract.py here
-                        # e.g., '--confidence', '0.5'
+                        '--input', save_path,
+                        '--model', model_path,
+                        '--output_dir', project_path,
+                        '--confidence', '0.5'
                     ]
                     print(f"Running analysis command: {' '.join(cmd)}")
 
@@ -119,11 +117,9 @@ def project_view(project_name):
                     print(error_msg)
                     analysis_errors.append(error_msg)
                 except Exception as e:
-                    # Catch other potential errors during subprocess execution
                     error_msg = f"An unexpected error occurred during analysis of {filename}: {str(e)}"
                     print(error_msg)
                     analysis_errors.append(error_msg)
-                # --- End analysis script --- 
         
         # Flash messages summarizing analysis results
         if analysis_success > 0:
@@ -145,21 +141,38 @@ def project_view(project_name):
             if not allowed_file(fname) or not fname.endswith(("_detection.png", "_detection.jpg", "_detection.jpeg")):
                 continue
             
-            # Get the base name without the _detection suffix
-            base = fname.replace("_detection", "")
-            metadata_path = os.path.join(project_path, f"{base}.json")
+            # Get the base name without the _detection suffix and extension
+            base_with_ext = fname.replace("_detection", "")
+            base_name, ext = os.path.splitext(base_with_ext)
             
-            # Load metadata if available
+            # Try different possible JSON file paths
+            possible_json_paths = [
+                os.path.join(project_path, f"{base_name}.json"),  # Original format
+                os.path.join(project_path, f"{base_name}_detection.json"),  # New format
+                os.path.join(project_path, f"{base_with_ext}.json"),  # With extension
+                os.path.join(project_path, f"{base_with_ext}_detection.json")  # With extension
+            ]
+            
+            # Try each possible path
             metadata = None
-            if os.path.exists(metadata_path):
-                try:
-                    with open(metadata_path, "r") as mfile:
-                        metadata = json.load(mfile)
-                except json.JSONDecodeError:
-                    metadata = None
+            for metadata_path in possible_json_paths:
+                print(f"Looking for metadata at: {metadata_path}")
+                print(f"File exists: {os.path.exists(metadata_path)}")
+                
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, "r") as mfile:
+                            metadata = json.load(mfile)
+                            print(f"Loaded metadata for {base_name} from {metadata_path}: {metadata}")
+                            break  # Found and loaded metadata, no need to try other paths
+                    except Exception as e:
+                        print(f"Error loading metadata from {metadata_path}: {e}")
+            
+            if metadata is None:
+                print(f"No metadata found for {base_name} in any of the expected locations")
             
             image_entries.append({
-                "filename": base,  # Store the original filename without _detection
+                "filename": base_name,  # Store the original filename without extension
                 "annotated": fname,  # Store the detection image filename
                 "meta": metadata
             })
