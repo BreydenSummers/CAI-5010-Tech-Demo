@@ -13,6 +13,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24) 
 # ----------------------
 
+# Add zip function to Jinja2 environment
+app.jinja_env.globals.update(zip=zip)
+
 # Configuration
 UPLOAD_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
@@ -171,6 +174,16 @@ def project_view(project_name):
             if metadata is None:
                 print(f"No metadata found for {base_name} in any of the expected locations")
             
+            # Debug print for metadata structure
+            if metadata:
+                print(f"Metadata structure for {base_name}:")
+                print(f"  Keys: {list(metadata.keys())}")
+                if 'predictions' in metadata:
+                    print(f"  Predictions keys: {list(metadata['predictions'].keys())}")
+                    if 'scores' in metadata['predictions']:
+                        print(f"  Number of scores: {len(metadata['predictions']['scores'])}")
+                        print(f"  First few scores: {metadata['predictions']['scores'][:3] if len(metadata['predictions']['scores']) > 0 else 'None'}")
+            
             image_entries.append({
                 "filename": base_name,  # Store the original filename without extension
                 "annotated": fname,  # Store the detection image filename
@@ -217,21 +230,48 @@ def analyze_selected(project_name):
         if not allowed_file(fname) or not fname.endswith(("_detection.png", "_detection.jpg", "_detection.jpeg")):
             continue
         
-        # Get the base name without the _detection suffix
-        base = fname.replace("_detection", "")
-        metadata_path = os.path.join(project_path, f"{base}.json")
+        # Get the base name without the _detection suffix and extension
+        base_with_ext = fname.replace("_detection", "")
+        base_name, ext = os.path.splitext(base_with_ext)
         
-        # Load metadata if available
+        # Try different possible JSON file paths
+        possible_json_paths = [
+            os.path.join(project_path, f"{base_name}.json"),  # Original format
+            os.path.join(project_path, f"{base_name}_detection.json"),  # New format
+            os.path.join(project_path, f"{base_with_ext}.json"),  # With extension
+            os.path.join(project_path, f"{base_with_ext}_detection.json")  # With extension
+        ]
+        
+        # Try each possible path
         metadata = None
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, "r") as mfile:
-                    metadata = json.load(mfile)
-            except json.JSONDecodeError:
-                metadata = None
+        for metadata_path in possible_json_paths:
+            print(f"Looking for metadata at: {metadata_path}")
+            print(f"File exists: {os.path.exists(metadata_path)}")
+            
+            if os.path.exists(metadata_path):
+                try:
+                    with open(metadata_path, "r") as mfile:
+                        metadata = json.load(mfile)
+                        print(f"Loaded metadata for {base_name} from {metadata_path}: {metadata}")
+                        break  # Found and loaded metadata, no need to try other paths
+                except Exception as e:
+                    print(f"Error loading metadata from {metadata_path}: {e}")
+        
+        if metadata is None:
+            print(f"No metadata found for {base_name} in any of the expected locations")
+        
+        # Debug print for metadata structure
+        if metadata:
+            print(f"Metadata structure for {base_name}:")
+            print(f"  Keys: {list(metadata.keys())}")
+            if 'predictions' in metadata:
+                print(f"  Predictions keys: {list(metadata['predictions'].keys())}")
+                if 'scores' in metadata['predictions']:
+                    print(f"  Number of scores: {len(metadata['predictions']['scores'])}")
+                    print(f"  First few scores: {metadata['predictions']['scores'][:3] if len(metadata['predictions']['scores']) > 0 else 'None'}")
         
         image_entries.append({
-            "filename": base,  # Store the original filename without _detection
+            "filename": base_name,  # Store the original filename without extension
             "annotated": fname,  # Store the detection image filename
             "meta": metadata
         })
@@ -305,5 +345,115 @@ def delete_image(project_name, filename):
     print(f"Redirecting to project view: {project_name}")
     # Use a direct redirect to avoid any potential form submission
     return redirect(url_for("project_view", project_name=project_name), code=303)
+
+@app.route('/project/<project_name>/image/<filename>')
+def image_details(project_name, filename):
+    """Display detailed information about a specific image."""
+    project_dir = os.path.join(UPLOAD_ROOT, project_name)
+    if not os.path.exists(project_dir):
+        flash('Project not found.', 'error')
+        return redirect(url_for('index'))
+
+    # Get the detection image filename
+    base_name = os.path.splitext(filename)[0]
+    detection_filename = f"{base_name}_detection{os.path.splitext(filename)[1]}"
+    
+    # Load metadata from JSON file
+    metadata = None
+    json_path = os.path.join(project_dir, f"{base_name}_detection.json")
+    print(f"Looking for metadata at: {json_path}")
+    
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+                print(f"Loaded JSON data: {data}")
+                if 'predictions' in data:
+                    predictions = data['predictions']
+                    metadata = {
+                        'num_detections': len(predictions['scores']),
+                        'avg_confidence': sum(predictions['scores']) / len(predictions['scores']) * 100,
+                        'max_confidence': max(predictions['scores']) * 100,
+                        'boxes': predictions['boxes'],
+                        'scores': predictions['scores'],
+                        'labels': predictions['labels']
+                    }
+                    print(f"Processed metadata: {metadata}")
+        except Exception as e:
+            print(f"Error loading metadata: {e}")
+            flash('Error loading image metadata.', 'error')
+    else:
+        print(f"Metadata file not found at: {json_path}")
+        # Try alternative paths
+        alt_paths = [
+            os.path.join(project_dir, f"{base_name}.json"),
+            os.path.join(project_dir, "results", f"{base_name}_detection.json"),
+            os.path.join(project_dir, "results", f"{base_name}.json")
+        ]
+        for alt_path in alt_paths:
+            print(f"Trying alternative path: {alt_path}")
+            if os.path.exists(alt_path):
+                try:
+                    with open(alt_path, 'r') as f:
+                        data = json.load(f)
+                        print(f"Loaded JSON data from alternative path: {data}")
+                        if 'predictions' in data:
+                            predictions = data['predictions']
+                            metadata = {
+                                'num_detections': len(predictions['scores']),
+                                'avg_confidence': sum(predictions['scores']) / len(predictions['scores']) * 100,
+                                'max_confidence': max(predictions['scores']) * 100,
+                                'boxes': predictions['boxes'],
+                                'scores': predictions['scores'],
+                                'labels': predictions['labels']
+                            }
+                            print(f"Processed metadata from alternative path: {metadata}")
+                            break
+                except Exception as e:
+                    print(f"Error loading metadata from alternative path: {e}")
+
+    # Check if the original image exists
+    original_path = os.path.join(project_dir, filename)
+    if not os.path.exists(original_path):
+        # Try with extension
+        for ext in ['.jpg', '.jpeg', '.png']:
+            alt_path = os.path.join(project_dir, f"{base_name}{ext}")
+            if os.path.exists(alt_path):
+                filename = f"{base_name}{ext}"
+                break
+    
+    # Check if the detection image exists
+    detection_path = os.path.join(project_dir, detection_filename)
+    if not os.path.exists(detection_path):
+        # Try with extension
+        for ext in ['.jpg', '.jpeg', '.png']:
+            alt_path = os.path.join(project_dir, f"{base_name}_detection{ext}")
+            if os.path.exists(alt_path):
+                detection_filename = f"{base_name}_detection{ext}"
+                break
+
+    print(f"Using original image: {filename}")
+    print(f"Using detection image: {detection_filename}")
+    
+    # Ensure metadata has the required fields
+    if metadata:
+        if 'labels' not in metadata:
+            metadata['labels'] = ['Object'] * len(metadata.get('scores', []))
+        if 'scores' not in metadata:
+            metadata['scores'] = []
+        if 'boxes' not in metadata:
+            metadata['boxes'] = []
+        if 'num_detections' not in metadata:
+            metadata['num_detections'] = len(metadata.get('scores', []))
+        if 'avg_confidence' not in metadata:
+            metadata['avg_confidence'] = sum(metadata.get('scores', [])) / len(metadata.get('scores', [])) * 100 if metadata.get('scores', []) else 0
+        if 'max_confidence' not in metadata:
+            metadata['max_confidence'] = max(metadata.get('scores', [])) * 100 if metadata.get('scores', []) else 0
+
+    return render_template('image_details.html',
+                         project_name=project_name,
+                         filename=filename,
+                         detection_filename=detection_filename,
+                         metadata=metadata)
 
 # (In a real setup, you would include app.run or use a WSGI server to run the app)

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <a href="{{ url_for('project_view', project_name=project_name) }}" 
+           class="text-blue-600 hover:text-blue-800">
+            &larr; Back to Project
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold mb-4">Image Details</h1>
+            
+            <!-- Images Section -->
+            <div class="space-y-8">
+                <!-- Original Image -->
+                <div class="text-center">
+                    <h2 class="text-lg font-semibold mb-4">Original Image</h2>
+                    <div class="max-w-4xl mx-auto">
+                        {% if filename %}
+                            <img src="{{ url_for('uploaded_file', project_name=project_name, filename=filename) }}?v={{ range(1000000) | random }}" 
+                                 alt="Original Image"
+                                 class="w-full h-auto rounded-lg shadow-lg">
+                        {% else %}
+                            <div class="bg-yellow-50 p-6 rounded-lg shadow">
+                                <p class="text-yellow-800">Original image not found.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Detection Image -->
+                <div class="text-center">
+                    <h2 class="text-lg font-semibold mb-4">Detection Results</h2>
+                    <div class="max-w-4xl mx-auto">
+                        {% if detection_filename %}
+                            <img src="{{ url_for('uploaded_file', project_name=project_name, filename=detection_filename) }}?v={{ range(1000000) | random }}" 
+                                 alt="Detection Results"
+                                 class="w-full h-auto rounded-lg shadow-lg">
+                        {% else %}
+                            <div class="bg-yellow-50 p-6 rounded-lg shadow">
+                                <p class="text-yellow-800">Detection image not found.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata Section -->
+            <div class="mt-12">
+                <h2 class="text-xl font-semibold mb-6">Analysis Results</h2>
+                
+                {% if metadata %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-6 rounded-lg shadow">
+                            <h3 class="font-medium text-lg mb-4">Summary</h3>
+                            <ul class="space-y-3">
+                                <li class="flex justify-between">
+                                    <span class="font-medium">Number of Detections:</span>
+                                    <span class="text-blue-600">{{ metadata.num_detections }}</span>
+                                </li>
+                                <li class="flex justify-between">
+                                    <span class="font-medium">Average Confidence:</span>
+                                    <span class="text-green-600">{{ "%.2f"|format(metadata.avg_confidence) }}%</span>
+                                </li>
+                                <li class="flex justify-between">
+                                    <span class="font-medium">Maximum Confidence:</span>
+                                    <span class="text-purple-600">{{ "%.2f"|format(metadata.max_confidence) }}%</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-gray-50 p-6 rounded-lg shadow">
+                            <h3 class="font-medium text-lg mb-4">Detected Objects</h3>
+                            <ul class="space-y-3">
+                                {% for label, score in zip(metadata.labels, metadata.scores) %}
+                                    <li class="flex justify-between items-center">
+                                        <span class="font-medium">{{ label }}</span>
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                            {{ "%.2f"|format(score * 100) }}%
+                                        </span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h3 class="font-medium text-lg mb-4">Detection Boxes</h3>
+                        <div class="bg-gray-50 p-6 rounded-lg shadow overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr class="border-b-2 border-gray-200">
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-600">Label</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-600">Confidence</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-600">Box Coordinates</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    {% for label, score, box in zip(metadata.labels, metadata.scores, metadata.boxes) %}
+                                        <tr>
+                                            <td class="px-6 py-4">{{ label }}</td>
+                                            <td class="px-6 py-4">
+                                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                                    {{ "%.2f"|format(score * 100) }}%
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 font-mono">{{ box }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="bg-yellow-50 p-6 rounded-lg shadow">
+                        <p class="text-yellow-800">No metadata available for this image.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
