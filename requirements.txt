@@ -2,5 +2,5 @@
 
 torch==2.2.0+cpu
 torchvision==0.17+cpu
-
+flask==2.3.2
 # matplotlib and numpy are also requirements--need to be added

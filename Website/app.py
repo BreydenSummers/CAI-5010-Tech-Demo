@@ -1,5 +1,7 @@
 import os
 import json
+import subprocess
+import sys # To get the current python interpreter path
 from flask import Flask, request, redirect, url_for, render_template, send_from_directory, abort, flash
 from werkzeug.utils import secure_filename
 
@@ -12,7 +14,7 @@ app.secret_key = os.urandom(24)
 # ----------------------
 
 # Configuration
-UPLOAD_ROOT = os.path.join(os.getcwd(), "results")
+UPLOAD_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 # Ensure the results directory exists
@@ -55,40 +57,98 @@ def create_project():
 
 @app.route("/project/<project_name>", methods=["GET", "POST"])
 def project_view(project_name):
-    """Project page: upload images and display gallery for the given project."""
-    project_path = os.path.join(UPLOAD_ROOT, secure_filename(project_name))
-    # If project folder doesn't exist, return 404
+    """Project page: upload images, trigger analysis, and display gallery."""
+    safe_proj = secure_filename(project_name)
+    project_path = os.path.join(UPLOAD_ROOT, safe_proj)
+    
+    print(f"Project view for: {project_name}")
+    print(f"Project path: {project_path}")
+    
     if not os.path.isdir(project_path):
+        print(f"Project directory not found: {project_path}")
         abort(404)
+    
     if request.method == "POST":
-        # Handle image upload(s)
-        files = request.files.getlist("images")  # 'images' is the name of the file input
+        # Handle file upload
+        files = request.files.getlist("images")
+        if not files or files[0].filename == "":
+            flash("No files selected", "error")
+            return redirect(url_for("project_view", project_name=project_name))
+        
+        analysis_errors = []
+        analysis_success = 0
+        
         for file in files:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 save_path = os.path.join(project_path, filename)
                 file.save(save_path)
-                # Placeholder: integrate analysis step here (e.g., generate annotated image and metadata)
-                # For example:
-                # annotated_path = os.path.join(project_path, f"{os.path.splitext(filename)[0]}_annotated{os.path.splitext(filename)[1]}")
-                # result = analyze_image(save_path)  # (Pseudo-code) Analyze image, get annotations and metadata
-                # result.save_annotated_image(annotated_path)
-                # with open(os.path.join(project_path, f"{os.path.splitext(filename)[0]}.json"), "w") as meta_file:
-                #     json.dump(result.metadata, meta_file)
+                print(f"Saved uploaded file to: {save_path}")
+
+                # --- Trigger analysis script --- 
+                try:
+                    # Define paths relative to workspace root
+                    workspace_root = os.path.abspath(os.path.join(app.root_path, '..'))
+                    script_path = os.path.join(workspace_root, 'extractor', 'extract.py')
+                    model_path = os.path.join(workspace_root, 'extractor', 'model', 'test_model.pth') # Point to the specific model file
+
+                    # Construct command
+                    # Use arguments identified from script's usage string
+                    cmd = [
+                        sys.executable, 
+                        script_path,
+                        '--input', save_path,      # Changed from --image_path
+                        '--model', model_path,      # Changed from --model_path
+                        '--output_dir', project_path # Added output directory
+                        # Add other necessary args for extract.py here
+                        # e.g., '--confidence', '0.5'
+                    ]
+                    print(f"Running analysis command: {' '.join(cmd)}")
+
+                    # Run the script from the workspace root directory
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=workspace_root)
+                    print(f"Analysis successful for {filename}:\n{result.stdout}")
+                    analysis_success += 1
+                
+                except subprocess.CalledProcessError as e:
+                    error_msg = f"Error analyzing {filename}: {e.stderr}"
+                    print(error_msg)
+                    analysis_errors.append(error_msg)
+                except FileNotFoundError:
+                    error_msg = f"Error analyzing {filename}: Could not find analysis script or Python interpreter."
+                    print(error_msg)
+                    analysis_errors.append(error_msg)
+                except Exception as e:
+                    # Catch other potential errors during subprocess execution
+                    error_msg = f"An unexpected error occurred during analysis of {filename}: {str(e)}"
+                    print(error_msg)
+                    analysis_errors.append(error_msg)
+                # --- End analysis script --- 
+        
+        # Flash messages summarizing analysis results
+        if analysis_success > 0:
+            flash(f"Successfully processed and initiated analysis for {analysis_success} image(s).", "success")
+        for error in analysis_errors:
+            flash(error, "error")
+            
         return redirect(url_for("project_view", project_name=project_name))
-    else:
+    
+    else: # GET request
         # Gather images and any available annotations/metadata for display
         image_entries = []
         files = sorted(os.listdir(project_path))
+        print(f"Files in project directory: {files}")
+        
+        # Only include files that have detection images
         for fname in files:
-            if not allowed_file(fname) or fname.endswith(("_annotated.png", "_annotated.jpg", "_annotated.jpeg")):
-                continue  # skip non-images and annotated images in the main loop
-            base, ext = os.path.splitext(fname)
-            annotated_name = f"{base}_annotated{ext}"
-            annotated_path = os.path.join(project_path, annotated_name)
+            # Skip non-image files and files that don't have detection images
+            if not allowed_file(fname) or not fname.endswith(("_detection.png", "_detection.jpg", "_detection.jpeg")):
+                continue
+            
+            # Get the base name without the _detection suffix
+            base = fname.replace("_detection", "")
             metadata_path = os.path.join(project_path, f"{base}.json")
-            # Check if annotated version exists
-            annotated = annotated_name if os.path.exists(annotated_path) else None
+            
             # Load metadata if available
             metadata = None
             if os.path.exists(metadata_path):
@@ -97,11 +157,14 @@ def project_view(project_name):
                         metadata = json.load(mfile)
                 except json.JSONDecodeError:
                     metadata = None
+            
             image_entries.append({
-                "filename": fname,
-                "annotated": annotated,
+                "filename": base,  # Store the original filename without _detection
+                "annotated": fname,  # Store the detection image filename
                 "meta": metadata
             })
+        
+        print(f"Image entries to display: {[img['filename'] for img in image_entries]}")
         return render_template("project.html", project_name=project_name, images=image_entries)
 
 @app.route("/project/<project_name>/analyze", methods=["POST"])
@@ -134,14 +197,18 @@ def analyze_selected(project_name):
     # We need to reload the image entries to re-render the project page correctly
     image_entries = []
     files = sorted(os.listdir(project_path))
+    
+    # Only include files that have detection images
     for fname in files:
-        if not allowed_file(fname) or fname.endswith(("_annotated.png", "_annotated.jpg", "_annotated.jpeg")):
+        # Skip non-image files and files that don't have detection images
+        if not allowed_file(fname) or not fname.endswith(("_detection.png", "_detection.jpg", "_detection.jpeg")):
             continue
-        base, ext = os.path.splitext(fname)
-        annotated_name = f"{base}_annotated{ext}"
-        annotated_path = os.path.join(project_path, annotated_name)
+        
+        # Get the base name without the _detection suffix
+        base = fname.replace("_detection", "")
         metadata_path = os.path.join(project_path, f"{base}.json")
-        annotated = annotated_name if os.path.exists(annotated_path) else None
+        
+        # Load metadata if available
         metadata = None
         if os.path.exists(metadata_path):
             try:
@@ -149,9 +216,10 @@ def analyze_selected(project_name):
                     metadata = json.load(mfile)
             except json.JSONDecodeError:
                 metadata = None
+        
         image_entries.append({
-            "filename": fname,
-            "annotated": annotated,
+            "filename": base,  # Store the original filename without _detection
+            "annotated": fname,  # Store the detection image filename
             "meta": metadata
         })
 
@@ -163,22 +231,66 @@ def analyze_selected(project_name):
         analysis_results=analysis_output # Pass the new analysis results
     )
 
-@app.route("/results/<project_name>/<filename>")
+@app.route("/project/<project_name>/file/<filename>")
 def uploaded_file(project_name, filename):
-    """Serve uploaded files (original or annotated images) from the results folder."""
-    # Secure the paths to prevent path traversal
+    """Serve uploaded files."""
     safe_proj = secure_filename(project_name)
     safe_file = secure_filename(filename)
-    dir_path = os.path.join(UPLOAD_ROOT, safe_proj)
-    file_path = os.path.join(dir_path, safe_file)
-    # Only send the file if it exists within the project directory
-    if not os.path.isfile(file_path):
-        abort(404)
-    return send_from_directory(dir_path, safe_file)
+    return send_from_directory(os.path.join(UPLOAD_ROOT, safe_proj), safe_file)
 
 @app.route("/about")
 def about():
     """Renders the about page."""
     return render_template("about.html")
+
+@app.route("/project/<project_name>/delete/<filename>", methods=["POST"])
+def delete_image(project_name, filename):
+    """Delete an image and its associated files from a project."""
+    safe_proj = secure_filename(project_name)
+    safe_file = secure_filename(filename)
+    project_path = os.path.join(UPLOAD_ROOT, safe_proj)
+    
+    print(f"Attempting to delete file: {safe_file} from project: {safe_proj}")
+    print(f"Project path: {project_path}")
+    
+    if not os.path.isdir(project_path):
+        print(f"Project directory not found: {project_path}")
+        abort(404)
+    
+    # Get the base name and extension
+    base, ext = os.path.splitext(safe_file)
+    
+    # List of files to delete
+    files_to_delete = [
+        safe_file,  # Original image
+        f"{base}_detection{ext}",  # Detection version
+        f"{base}.json"  # Metadata file
+    ]
+    
+    print(f"Files to delete: {files_to_delete}")
+    
+    # Delete each file if it exists
+    deleted_files = []
+    for file in files_to_delete:
+        file_path = os.path.join(project_path, file)
+        print(f"Checking if file exists: {file_path}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"Successfully deleted: {file_path}")
+                deleted_files.append(file)
+            except Exception as e:
+                print(f"Error deleting {file_path}: {str(e)}")
+                flash(f"Error deleting {file}: {str(e)}", "error")
+                return redirect(url_for("project_view", project_name=project_name))
+    
+    if deleted_files:
+        flash(f"Successfully deleted {', '.join(deleted_files)}", "success")
+    else:
+        flash(f"No files were deleted. File {safe_file} may not exist.", "warning")
+    
+    print(f"Redirecting to project view: {project_name}")
+    # Use a direct redirect to avoid any potential form submission
+    return redirect(url_for("project_view", project_name=project_name), code=303)
 
 # (In a real setup, you would include app.run or use a WSGI server to run the app)

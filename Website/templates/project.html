@@ -5,14 +5,29 @@
   <!-- Image Upload Form -->
   <div class="mb-6 p-4 bg-white shadow rounded">
     <h2 class="text-xl font-semibold mb-3">1. Upload Images</h2>
-    <form method="POST" action="{{ url_for('project_view', project_name=project_name) }}" enctype="multipart/form-data">
-      <input type="file" name="images" multiple 
-             class="block w-full text-gray-700 mb-3 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300" 
-             accept=".jpg,.jpeg,.png" />
-      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+    <form method="POST" action="{{ url_for('project_view', project_name=project_name) }}" enctype="multipart/form-data" id="uploadForm">
+      <div class="mb-3">
+        <label for="images" class="block text-sm font-medium text-gray-700">Upload Image</label>
+        <input type="file" class="mt-1 block w-full text-sm text-gray-500
+          file:mr-4 file:py-2 file:px-4
+          file:rounded-full file:border-0
+          file:text-sm file:font-semibold
+          file:bg-blue-50 file:text-blue-700
+          hover:file:bg-blue-100" 
+          id="images" name="images" accept="image/*" required>
+      </div>
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-150 ease-in-out">
         Upload
       </button>
     </form>
+    
+    <!-- Loading Bar -->
+    <div id="loadingBar" class="mt-4 hidden">
+      <div class="w-full bg-gray-200 rounded-full h-2.5">
+        <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 100%"></div>
+      </div>
+      <p class="text-center mt-2 text-gray-600">Processing images...</p>
+    </div>
   </div>
 
   <!-- Image Selection and Analysis Trigger -->
@@ -20,52 +35,38 @@
     <h2 class="text-xl font-semibold mb-4">2. Select Images for Further Analysis</h2>
     {% if images %}
       <form method="POST" action="{{ url_for('analyze_selected', project_name=project_name) }}" id="imageSelectionForm">
-        <div class="mb-4 flex items-center">
-            <input type="checkbox" id="selectAll" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-            <label for="selectAll" class="font-medium">Select All</label>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {% for img in images %}
-            <div class="border rounded p-3 flex items-start space-x-3">
-              <input type="checkbox" name="selected_images" value="{{ img.filename }}" class="image-checkbox mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-              <div class="flex-grow">
-                <!-- Image title/name -->
-                <h3 class="font-medium mb-2">{{ img.filename }}</h3>
-                <!-- Original and annotated images (if available) side by side -->
-                <div class="flex mb-2 space-x-2">
-                  <img src="{{ url_for('uploaded_file', project_name=project_name, filename=img.filename) }}" 
-                       alt="{{ img.filename }}" class="object-contain border max-h-60 w-1/2" />
-                  {% if img.annotated %}
-                    <img src="{{ url_for('uploaded_file', project_name=project_name, filename=img.annotated) }}" 
-                         alt="{{ img.filename }} annotated" class="object-contain border max-h-60 w-1/2" />
-                  {% endif %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {% for image in images %}
+            <div class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+              <img src="{{ url_for('uploaded_file', project_name=project_name, filename=image.annotated) }}?v={{ range(1000000) | random }}" 
+                   class="w-full h-48 object-cover cursor-pointer" 
+                   alt="{{ image.filename }}"
+                   onclick="showImage(this.src)">
+              <div class="p-4">
+                <h5 class="font-semibold text-gray-800">{{ image.filename }}</h5>
+                {% if image.meta and image.meta.confidence %}
+                  <p class="text-sm text-gray-600">Confidence: {{ "%.2f"|format(image.meta.confidence * 100) }}%</p>
+                {% endif %}
+                <div class="mt-2">
+                  <label class="inline-flex items-center">
+                    <input type="checkbox" name="selected_images" value="{{ image.filename }}" 
+                           class="form-checkbox h-4 w-4 text-blue-600" id="check{{ loop.index }}">
+                    <span class="ml-2 text-sm text-gray-700">Select for analysis</span>
+                  </label>
                 </div>
-                <!-- Metadata display -->
-                <div class="text-sm text-gray-800">
-                  <p><strong>Label:</strong>
-                    {% if img.meta and img.meta.label %}
-                      {{ img.meta.label }}
-                    {% else %}
-                      <em>Not available</em>
-                    {% endif %}
-                  </p>
-                  <p><strong>Confidence:</strong>
-                    {% if img.meta and img.meta.confidence %}
-                      {{ img.meta.confidence }}
-                    {% else %}
-                      <em>Not available</em>
-                    {% endif %}
-                  </p>
-                  <!-- Additional metadata fields can be added here in the future -->
-                </div>
+                <button type="button" 
+                        class="mt-2 bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition duration-150 ease-in-out"
+                        onclick="deleteImage('{{ project_name }}', '{{ image.filename }}')">
+                  Delete
+                </button>
               </div>
             </div>
           {% endfor %}
         </div>
         <div class="mt-6">
-            <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold">
-              Run Further Analysis on Selected Images
-            </button>
+          <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-150 ease-in-out">
+            Analyze Selected
+          </button>
         </div>
       </form>
     {% else %}
@@ -73,61 +74,85 @@
     {% endif %}
   </div>
 
-<script>
-  // Select All functionality
-  document.getElementById('selectAll').addEventListener('change', function(event) {
-    const checkboxes = document.querySelectorAll('.image-checkbox');
-    checkboxes.forEach(checkbox => {
-      checkbox.checked = event.target.checked;
-    });
-  });
-
-  // Uncheck "Select All" if any individual checkbox is unchecked
-  document.querySelectorAll('.image-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-      if (!this.checked) {
-        document.getElementById('selectAll').checked = false;
-      }
-      // Optional: Check if all are checked to re-check "Select All"
-      let allChecked = true;
-      document.querySelectorAll('.image-checkbox').forEach(cb => {
-        if (!cb.checked) allChecked = false;
-      });
-      document.getElementById('selectAll').checked = allChecked;
-    });
-  });
-</script>
-
-{# --- Display Further Analysis Results (if available) --- #}
-{% if analysis_results %}
-<div class="mt-8 pt-6 border-t border-gray-300">
-  <h2 class="text-2xl font-semibold mb-4">3. Combined Analysis Output</h2>
-  <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-6" role="alert">
-    <strong class="font-bold">{{ analysis_results.message }}</strong>
-  </div>
-
-  <div class="bg-white shadow rounded p-4 mb-6">
-    <h3 class="text-xl font-semibold mb-3">Images Included in this Analysis:</h3>
-    {% if analysis_results.analyzed_files %}
-        <ul class="list-disc list-inside space-y-1">
-            {% for filename in analysis_results.analyzed_files %}
-                <li>{{ filename }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p class="text-gray-600">No specific images were included.</p>
-    {% endif %}
-  </div>
-
-  <div class="bg-white shadow rounded p-4">
-      <h3 class="text-xl font-semibold mb-3">Analysis Details:</h3>
-      <div class="prose max-w-none p-4 border rounded bg-gray-50">
-          <p>{{ analysis_results.details }}</p>
-          <!-- More detailed results output would go here -->
+  <!-- Image Modal -->
+  <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+    <div class="max-w-4xl w-full mx-4">
+      <div class="bg-white rounded-lg overflow-hidden">
+        <div class="p-4">
+          <img src="" class="max-h-[80vh] w-full object-contain" id="modalImage">
+        </div>
       </div>
+    </div>
   </div>
-</div>
-{% endif %}
-{# --- End Analysis Results Section --- #}
 
+  {% if analysis_results %}
+  <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+    <h3 class="text-lg font-semibold mb-2">Analysis Results</h3>
+    <pre class="bg-gray-100 p-4 rounded overflow-x-auto">{{ analysis_results | tojson(indent=2) }}</pre>
+  </div>
+  {% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadForm');
+    const analysisForm = document.getElementById('imageSelectionForm');
+    const loadingBar = document.getElementById('loadingBar');
+    const modal = document.getElementById('imageModal');
+
+    function showLoading() {
+      loadingBar.classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      loadingBar.classList.add('hidden');
+    }
+
+    uploadForm.addEventListener('submit', function() {
+      showLoading();
+    });
+
+    analysisForm.addEventListener('submit', function() {
+      showLoading();
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+
+    // Handle Escape key
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        modal.classList.add('hidden');
+      }
+    });
+  });
+
+  function showImage(src) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    modalImg.src = src;
+    modal.classList.remove('hidden');
+  }
+
+  function deleteImage(projectName, filename) {
+    if (confirm('Are you sure you want to delete this image?')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/project/${projectName}/delete/${filename}`;
+      
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrf_token';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+      
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+</script>
 {% endblock %}
