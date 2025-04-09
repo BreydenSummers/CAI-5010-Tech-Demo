@@ -99,53 +99,54 @@ def main():
     parser.add_argument('--model', default='extractor/models/test_model.pth', help='Path to model file')
     parser.add_argument('--output_dir', default='extractor/output', help='Directory to save results')
     parser.add_argument('--confidence', type=float, default=0.5, help='Confidence threshold for detections')
-    parser.add_argument('--num_classes', type=int, default=2, help='Number of classes (including background)')
+    
     args = parser.parse_args()
     
-    # Check if input file exists
-    if not os.path.isfile(args.input):
-        print(f"Error: Input file {args.input} does not exist")
-        return
-    
     # Create output directory if it doesn't exist
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    os.makedirs(args.output_dir, exist_ok=True)
     
-    # Set device
+    # Set up device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
     # Load model
-    print(f"Loading model from {args.model}...")
     try:
-        model = get_model(args.num_classes)
+        model = get_model(num_classes=2)  # Adjust number of classes as needed
         model.load_state_dict(torch.load(args.model, map_location=device))
         model.to(device)
-        model.eval()
-        print("Model loaded successfully")
+        print(f"Model loaded from {args.model}")
     except Exception as e:
         print(f"Error loading model: {e}")
         return
     
-    # Get file basename for output
-    image_basename = os.path.splitext(os.path.basename(args.input))[0]
-    
-    # Run prediction
-    print(f"Running prediction on {args.input}...")
-    predictions, img = predict_image(model, args.input, device, args.confidence)
-    
-    # Save visualization
-    viz_path = os.path.join(args.output_dir, f"{image_basename}_detection.png")
-    visualize_predictions(img, predictions, viz_path)
-    
-    # Save JSON results
-    json_path = os.path.join(args.output_dir, f"{image_basename}_predictions.json")
-    save_predictions_to_json(predictions, args.input, json_path)
-    
-    # Print summary
-    print(f"\nPrediction complete!")
-    print(f"Detected {len(predictions['boxes'])} objects with confidence threshold {args.confidence}")
-    print(f"Results saved to {args.output_dir}")
+    # Process image
+    try:
+        # Get predictions
+        predictions, img = predict_image(model, args.input, device, args.confidence)
+        
+        # Generate output paths
+        input_filename = os.path.basename(args.input)
+        base_name, ext = os.path.splitext(input_filename)
+        
+        # Save detection image with _detection suffix
+        output_image = os.path.join(args.output_dir, f"{base_name}_detection{ext}")
+        
+        # Save JSON with the same base name as the original image
+        output_json = os.path.join(args.output_dir, f"{base_name}.json")
+        
+        # Save visualization
+        visualize_predictions(img, predictions, output_image)
+        
+        # Save predictions to JSON
+        save_predictions_to_json(predictions, args.input, output_json)
+        
+        print(f"Processing complete. Results saved to {args.output_dir}")
+        print(f"Detection image: {output_image}")
+        print(f"Metadata JSON: {output_json}")
+        
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return
 
 if __name__ == "__main__":
     main()
