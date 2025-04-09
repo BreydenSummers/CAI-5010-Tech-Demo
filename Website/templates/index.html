@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1 class="text-2xl font-bold mb-4">Projects</h1>
+
+  <!-- New Project Form -->
+  <div class="mb-6 p-4 bg-white shadow rounded">
+    <h2 class="text-xl font-semibold mb-2">Start a New Project</h2>
+    <form method="POST" action="{{ url_for('create_project') }}" class="flex items-center">
+      <input 
+        type="text" name="project_name" placeholder="Project name" 
+        class="flex-grow border border-gray-300 rounded px-2 py-1 mr-2" required />
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+        Create
+      </button>
+    </form>
+  </div>
+
+  <!-- List of Existing Projects -->
+  <div class="bg-white shadow rounded p-4">
+    <h2 class="text-xl font-semibold mb-3">Existing Projects</h2>
+    {% if projects %}
+      <ul>
+        {% for proj in projects %}
+          <li class="mb-2">
+            <a href="{{ url_for('project_view', project_name=proj.name) }}" class="text-blue-600 hover:underline">
+              {{ proj.name }}
+            </a>
+            <span class="text-sm text-gray-600">({{ proj.count }} images)</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-700">No projects yet. Create one above.</p>
+    {% endif %}
+  </div>
+{% endblock %}

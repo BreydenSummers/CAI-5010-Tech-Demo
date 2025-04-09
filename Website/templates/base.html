@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>{% block title %}Tech Demo{% endblock %}</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-300 flex flex-col min-h-screen">
+    <nav class="bg-gray-900 border-b-2 border-gray-600 py-3">
+        <div class="max-w-4xl mx-auto flex justify-between items-center px-4">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="h-10"> {# Adjust height as needed #}
+            </a>
+            <ul class="flex space-x-6">
+                <li><a href="{{ url_for('index') }}" class="text-gray-400 hover:text-white font-semibold text-lg">Home</a></li>
+                <li><a href="{{ url_for('about') }}" class="text-gray-400 hover:text-white font-semibold text-lg">About</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container max-w-4xl mx-auto p-6 bg-white text-gray-900 rounded-lg shadow-md my-8 flex-grow">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {# Basic flash styling with Tailwind - adjust colors as needed #}
+                    {% set bg_color = 'bg-blue-100 border-blue-400 text-blue-700' %}
+                    {% if category == 'success' %}
+                        {% set bg_color = 'bg-green-100 border-green-400 text-green-700' %}
+                    {% elif category == 'error' %}
+                        {% set bg_color = 'bg-red-100 border-red-400 text-red-700' %}
+                    {% endif %}
+                    <div class="p-4 mb-4 rounded border {{ bg_color }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <footer class="bg-gray-900 text-gray-400 text-center py-4 mt-auto border-t border-gray-600">
+        <p>&copy; 2024 Tech Demo Project</p>
+    </footer>
+</body>
+</html>

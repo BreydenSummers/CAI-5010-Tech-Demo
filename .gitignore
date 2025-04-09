@@ -58,3 +58,9 @@ extractor/data/*
 extractor/evaluation_results/*
 extractor/samples/*
 extractor/output/*
+
+# Website-specific generated content
+Website/results/*
+
+
+
