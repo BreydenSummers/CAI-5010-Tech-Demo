@@ -19,7 +19,7 @@
     <!-- Upload Form -->
     <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
         <h2 class="text-xl font-semibold mb-4">Upload Images</h2>
-        <form action="{{ url_for('project_view', project_name=project_name) }}" method="post" enctype="multipart/form-data" class="space-y-4">
+        <form id="uploadForm" action="{{ url_for('project_view', project_name=project_name) }}" method="post" enctype="multipart/form-data" class="space-y-4">
             <div class="flex items-center space-x-4">
                 <input type="file" name="images" multiple accept="image/*" class="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
@@ -32,6 +32,14 @@
                 </button>
             </div>
         </form>
+        
+        <!-- Loading Bar -->
+        <div id="loadingBar" class="mt-4 hidden">
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 100%"></div>
+            </div>
+            <p class="text-center mt-2 text-gray-600">Processing images...</p>
+        </div>
     </div>
 
     <!-- Analysis Form -->
@@ -101,6 +109,28 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadForm = document.getElementById('uploadForm');
+        const analysisForm = document.getElementById('analysisForm');
+        const loadingBar = document.getElementById('loadingBar');
+        
+        function showLoading() {
+            loadingBar.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingBar.classList.add('hidden');
+        }
+        
+        uploadForm.addEventListener('submit', function() {
+            showLoading();
+        });
+        
+        analysisForm.addEventListener('submit', function() {
+            showLoading();
+        });
+    });
+    
     function toggleSelection(element, filename) {
         const checkbox = element.querySelector('input[type="checkbox"]');
         checkbox.checked = !checkbox.checked;
