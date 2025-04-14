@@ -32,7 +32,7 @@
                 </button>
             </div>
         </form>
-        
+
         <!-- Loading Bar -->
         <div id="loadingBar" class="mt-4 hidden">
             <div class="w-full bg-gray-200 rounded-full h-2.5">
@@ -70,19 +70,19 @@
                             </svg>
                         </div>
                     </div>
-                    <img src="{{ url_for('uploaded_file', project_name=project_name, filename=image.annotated) }}?v={{ range(1000000) | random }}" 
-                         alt="{{ image.filename }}" 
+                    <img src="{{ url_for('uploaded_file', project_name=project_name, filename=image.annotated) }}?v={{ range(1000000) | random }}"
+                         alt="{{ image.filename }}"
                          class="w-full h-48 object-cover">
                 </div>
                 <div class="p-4">
                     <h3 class="font-medium truncate">{{ image.filename }}</h3>
                     <div class="mt-2 flex justify-between">
-                        <a href="{{ url_for('image_details', project_name=project_name, filename=image.filename) }}" 
+                        <a href="{{ url_for('image_details', project_name=project_name, filename=image.filename) }}"
                            class="text-blue-600 hover:text-blue-800">
                             View Details
                         </a>
-                        <form action="{{ url_for('delete_image', project_name=project_name, filename=image.filename) }}" 
-                              method="post" class="inline" 
+                        <form action="{{ url_for('delete_image', project_name=project_name, filename=image.filename) }}"
+                              method="post" class="inline"
                               onsubmit="return confirm('Are you sure you want to delete this image?');">
                             <button type="submit" class="text-red-600 hover:text-red-800">
                                 Delete
@@ -98,17 +98,17 @@
     <!-- Analysis Results -->
     {% if analysis_results %}
     <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">Analysis Results</h2>
-        <div class="prose max-w-none">
-            <p>{{ analysis_results.message }}</p>
-            <h3>Analyzed Files:</h3>
-            <ul>
-                {% for file in analysis_results.analyzed_files %}
-                <li>{{ file }}</li>
-                {% endfor %}
-            </ul>
-            <h3>Details:</h3>
-            <p>{{ analysis_results.details }}</p>
+        <h3 class="text-xl font-semibold">Analysis Results</h3>
+        <img src="{{ url_for('uploaded_file', project_name=project_name, filename=analysis_results.analyzed_files[0]) }}.jpg?v={{ range(1000000) | random }}"
+             alt="{{analysis_results.analyzed_files[0]}}"
+             class="w-full mt-4">
+        <div class="prose max-w-none space-y-1 mt-2">
+            <p><span class="mt-2 font-bold">Airport Type:</span> {{ analysis_results.details.airport_type }}</p>
+            <p class="text-sm text-black/75 pl-3"><span class="font-semibold">Evidence:</span> {{ analysis_results.details.airport_type_evidence }}</p>
+            <p><span class="font-bold">Operational Tempo:</span> {{ analysis_results.details.operational_tempo }}</p>
+            <p class="text-sm text-black/75 pl-3"><span class="font-semibold">Evidence:</span> {{ analysis_results.details.operational_tempo_reasoning }}</p>
+            <p><span class="font-bold">Abnormal Activity:</span> {{ analysis_results.details.abnormal_activity }}</p>
+            <p><span class="font-bold">Feature Summary:</span> {{ analysis_results.details.feature_summary }}</p>
         </div>
     </div>
     {% endif %}
@@ -121,23 +121,23 @@
         const loadingBar = document.getElementById('loadingBar');
         const selectAllCheckbox = document.getElementById('selectAll');
         const imageCards = document.querySelectorAll('.image-card');
-        
+
         function showLoading() {
             loadingBar.classList.remove('hidden');
         }
-        
+
         function hideLoading() {
             loadingBar.classList.add('hidden');
         }
-        
+
         uploadForm.addEventListener('submit', function() {
             showLoading();
         });
-        
+
         analysisForm.addEventListener('submit', function() {
             showLoading();
         });
-        
+
         // Select All functionality
         selectAllCheckbox.addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('input[name="selected_images"]');
@@ -155,11 +155,11 @@
             updateAnalyzeButton();
         });
     });
-    
+
     function toggleSelection(element, filename) {
         const checkbox = element.querySelector('input[type="checkbox"]');
         checkbox.checked = !checkbox.checked;
-        
+
         // Toggle selection styling
         const card = element.closest('.image-card');
         if (checkbox.checked) {
@@ -167,20 +167,20 @@
         } else {
             card.classList.remove('selected');
         }
-        
+
         // Update analyze button state
         updateAnalyzeButton();
-        
+
         // Update select all checkbox state
         updateSelectAllState();
     }
-    
+
     function updateAnalyzeButton() {
         const checkboxes = document.querySelectorAll('input[name="selected_images"]:checked');
         const analyzeBtn = document.getElementById('analyzeBtn');
         analyzeBtn.disabled = checkboxes.length === 0;
     }
-    
+
     function updateSelectAllState() {
         const checkboxes = document.querySelectorAll('input[name="selected_images"]');
         const selectAllCheckbox = document.getElementById('selectAll');
@@ -193,13 +193,13 @@
     .image-card {
         transition: all 0.2s ease-in-out;
     }
-    
+
     .image-card.selected {
         transform: scale(1.02);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         border: 3px solid #3b82f6;
     }
-    
+
     .image-card.selected .relative {
         border: none;
     }

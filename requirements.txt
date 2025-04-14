@@ -1,6 +1,7 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
 
-torch==2.2.0+cpu
-torchvision==0.17+cpu
+torch==2.2.0
+torchvision==0.17
 flask==2.3.2
+openai==1.73.0
 # matplotlib and numpy are also requirements--need to be added
