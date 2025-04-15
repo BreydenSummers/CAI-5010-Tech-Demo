@@ -224,30 +224,17 @@ def analyze_selected(project_name):
         try:
             client = OpenAI()
 
-            # Read the image file as binary
-            # with open(first_image_path, "rb") as image_file:
-            #     image_data = image_file.read()
-
             # Encode the image to base64
             base64_image = encode_image_base64(first_image_path)
 
-
-# """Analyze the image and return a JSON object with the following schema:
-# {
-# "airport_type": "civil | military | joint",
-# "operational_tempo": "low | moderate | high | dormant",
-# "abnormal_activity": "none | short description",
-# "activity_summary": "short summary"
-# }
-
-# Only return the JSON, with no commentary. Keep your descriptions short and accurate."""
+            # NOTE: Removed Metadata analysis for now. Kept getting weird results.
 
             response = client.responses.create(
                 model="gpt-4o",
                 input=[
                     {
                         "role": "system",
-                        "content": "You are an expert imagery intelligence analyst. Your task is to analyze satellite images of airports and return your analysis in a structured JSON response."
+                        "content": "You are an expert imagery intelligence analyst. Your task is to analyze satellite images of airports and deliver your analysis in a structured JSON response."
                     },
                     {
                         "role": "user",
@@ -321,8 +308,6 @@ def analyze_selected(project_name):
 
             # Extract response content
             gpt_analysis = response.output_text
-            # gpt_analysis = "Placeholder for GPT-4 analysis result"  # Replace with actual response content
-            # print(f"GPT-4 Analysis: {gpt_analysis}")
 
             # Decode the JSON response
             try:
